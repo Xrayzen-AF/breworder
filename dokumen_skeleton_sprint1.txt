@@ -1,0 +1,420 @@
+Coffee Shop Order - CONTOH SKELETON KODE PONDASI SPRINT 1
+S1-06 & S1-07: Pilih implementasi skeleton sesuai teknologi kelompok (PILIHAN 1: PHP / LARAVEL)
+==============================================================================
+
+A. Konfigurasi Lingkungan (.env)
+------------------------------------------------------------------------------
+# ==============================================================
+# COFFEE SHOP ORDER — DOKUMENTASI KONFIGURASI LINGKUNGAN
+# --------------------------------------------------------------
+# File ini adalah pusat konfigurasi aplikasi. Semua nilai bersifat
+# per-lingkungan (local / staging / production) dan TIDAK boleh
+# di-commit ke repository (sudah diabaikan lewat .gitignore).
+# Salin file ini sebagai titik awal:  cp .env.example .env
+# ==============================================================
+
+# --------------------------------------------------------------
+# 1. APLIKASI
+# --------------------------------------------------------------
+# APP_NAME      : nama aplikasi, dipakai di judul halaman & email.
+# APP_ENV       : local | staging | production. Mengubah perilaku error & logging.
+# APP_KEY       : kunci enkripsi 32-byte base64. Wajib diisi!
+#                 Generate ulang dengan: php artisan key:generate
+# APP_DEBUG     : true = tampilkan halaman error detail (HANYA untuk local).
+# APP_URL       : URL dasar aplikasi, dipakai untuk link & artisan commands.
+# APP_LOCALE    : bahasa default aplikasi (id = Indonesia).
+# APP_TIMEZONE  : zona waktu default untuk Carbon & pencatatan waktu.
+APP_NAME="Coffee Shop Order"
+APP_ENV=local
+APP_KEY=base64:nAY33eFZgnt+12ypLq8QJ1g8L7aJtziPkSDh6XbbjCM=
+APP_DEBUG=true
+APP_TIMEZONE=Asia/Jakarta
+APP_URL=http://localhost:8000
+
+APP_LOCALE=id
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=id_ID
+
+# Kunci logging channel (lihat config/logging.php).
+LOG_CHANNEL=stack
+LOG_STACK_CHANNELS=[single]
+LOG_DEPRECATIONS_CHANNEL=null
+LOG_LEVEL=debug
+
+# --------------------------------------------------------------
+# 2. KONEKSI DATABASE (driver aktif: SQLite untuk pengembangan lokal)
+# --------------------------------------------------------------
+# DB_CONNECTION : sqlite | mysql | mariadb | pgsql | sqlsrv.
+#                 Driver aktif ditentukan oleh nilai di sini;
+#                 blok kredensial driver lain tetap ditulis sebagai dokumentasi.
+# Catatan SQLite: DB_DATABASE memakai path absolut ke file database.
+DB_CONNECTION=sqlite
+# DB_DATABASE=C:/Project UKK 2026/Coffee Shop Order System/breworder/coffee-shop-order/database/database.sqlite
+
+# --- Contoh konfigurasi MySQL (aktifkan blok ini bila memakai MySQL) ---
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=coffee_shop_order
+DB_USERNAME=root
+DB_PASSWORD=rahasia
+
+# --- Contoh konfigurasi PostgreSQL (aktifkan blok ini bila memakai PostgreSQL) ---
+# DB_CONNECTION=pgsql
+# DB_HOST=127.0.0.1
+# DB_PORT=5432
+# DB_DATABASE=coffee_shop_order
+# DB_USERNAME=postgres
+# DB_PASSWORD=rahasia
+
+# --------------------------------------------------------------
+# 3. SESSION & CACHE
+# --------------------------------------------------------------
+# SESSION_DRIVER : file | cookie | database | apc | memcached | redis | array.
+#                  Driver default Laravel 12; tabel `sessions` dibuat oleh migrasi.
+SESSION_DRIVER=database
+SESSION_CONNECTION=null
+SESSION_LIFETIME=120
+SESSION_ENCRYPT=false
+SESSION_SECURE_COOKIE=null
+
+# CACHE_STORE : database | file | redis | memcached | array.
+#               HealthController menguji cache melalui store ini.
+CACHE_STORE=database
+CACHE_PREFIX=coffee_shop_order
+
+QUEUE_CONNECTION=database
+BROADCAST_CONNECTION=log
+FILESYSTEM_DISK=local
+# REDIS_HOST=127.0.0.1
+# REDIS_PASSWORD=null
+# REDIS_PORT=6379
+
+# --------------------------------------------------------------
+# 4. MAIL (untuk notifikasi; tidak dipakai healthcheck)
+# --------------------------------------------------------------
+MAIL_MAILER=log
+MAIL_HOST=127.0.0.1
+MAIL_PORT=2525
+MAIL_USERNAME=null
+MAIL_PASSWORD=null
+MAIL_FROM_ADDRESS="hello@example.com"
+MAIL_FROM_NAME="${APP_NAME}"
+
+# --------------------------------------------------------------
+# 5. LAYANAN PIHAK KETIGA (contoh dokumentasi)
+# --------------------------------------------------------------
+# AWS_S3_UPLOADS (opsional) — simpan berkas di Amazon S3:
+# AWS_ACCESS_KEY_ID=
+# AWS_SECRET_ACCESS_KEY=
+# AWS_DEFAULT_REGION=ap-southeast-1
+# AWS_BUCKET=coffee-shop-order
+# AWS_ENDPOINT=
+# AWS_USE_PATH_STYLE_ENDPOINT=false
+
+# --------------------------------------------------------------
+# 6. HEALTHCHECK (kustom — dibaca oleh App\Http\Controllers\HealthController)
+# --------------------------------------------------------------
+# HEALTHCHECK_TOKEN : jika diisi, endpoint /health wajib mengirim token ini
+#                     sebagai header X-Health-Token untuk proteksi detail.
+#                     Kosongkan (null) untuk lingkungan lokal tanpa proteksi.
+HEALTHCHECK_TOKEN=null
+
+B. Controller Uji Koneksi & Healthcheck (app/Http/Controllers/HealthController.php)
+------------------------------------------------------------------------------
+<?php
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\View\View;
+
+/**
+ * Controller Uji Koneksi & Healthcheck
+ * -------------------------------------
+ * Endpoint:
+ *   GET /health            -> JSON status layanan (untuk monitoring/load balancer)
+ *   GET /health (HTML)     -> halaman uji koneksi bergaya UI bila diakses browser
+ *   GET /uji-koneksi       -> halaman Uji Koneksi lengkap dengan panel .env aktif
+ *
+ * Pemeriksaan yang dijalankan:
+ *   - Database  : koneksi aktif + nama driver & database
+ *   - Cache     : tulis/baca/hapus kunci uji pada store CACHE_STORE
+ *   - Storage   : tulis/baca/hapus berkas pada storage/app (disk lokal)
+ *
+ * Variabel lingkungan terkait (lihat .env):
+ *   - APP_NAME, APP_ENV, CACHE_STORE
+ *   - HEALTHCHECK_TOKEN : jika diisi (bukan "null"), endpoint /health wajib
+ *     mengirim header X-Health-Token dengan nilai yang sama.
+ */
+class HealthController extends Controller
+{
+    /**
+     * Nama kunci cache & berkas uji. Unik agar mudah dibersihkan.
+     */
+    protected string $cacheKey = 'healthcheck:ping';
+
+    protected string $probeFile = 'healthcheck-probe.txt';
+
+    /**
+     * Endpoint utama healthcheck.
+     * Browser menerima halaman HTML; klien API/monitoring menerima JSON.
+     */
+    public function index(Request $request): JsonResponse|View
+    {
+        if (! $this->tokenValid($request)) {
+            return response()->json([
+                'status' => 'unauthorized',
+                'message' => 'Header X-Health-Token tidak valid atau hilang.',
+            ], 401);
+        }
+
+        $checks = [
+            'database' => $this->checkDatabase(),
+            'cache' => $this->checkCache(),
+            'storage' => $this->checkStorage(),
+        ];
+
+        // Setiap check berisi ['ok' => bool, 'detail' => array].
+        $healthy = ! in_array(false, array_column($checks, 'ok'), true);
+
+        $payload = [
+            'status' => $healthy ? 'ok' : 'degraded',
+            'app' => [
+                'name' => config('app.name'),
+                'env' => app()->environment(),
+                'laravel' => app()->version(),
+                'php' => PHP_VERSION,
+                'timezone' => config('app.timezone'),
+                'time' => now()->toIso8601String(),
+            ],
+            'checks' => array_map(
+                fn (array $check) => $check + ['status' => $check['ok'] ? 'ok' : 'fail'],
+                $checks
+            ),
+        ];
+
+        // Permintaan dari browser (Accept: text/html) -> tampilkan halaman UI.
+        if ($request->acceptsHtml()) {
+            return view('health.index', [
+                'payload' => $payload,
+                'healthy' => $healthy,
+                'checks' => $checks,
+            ]);
+        }
+
+        return response()->json($payload, $healthy ? 200 : 503);
+    }
+
+    /**
+     * Halaman Uji Koneksi: menjalankan ulang seluruh pemeriksaan
+     * dan menampilkan ringkasan konfigurasi .env yang sedang aktif.
+     */
+    public function ujiKoneksi(): View
+    {
+        $checks = [
+            'database' => $this->checkDatabase(),
+            'cache' => $this->checkCache(),
+            'storage' => $this->checkStorage(),
+        ];
+
+        $healthy = ! in_array(false, array_column($checks, 'ok'), true);
+
+        return view('health.uji-koneksi', [
+            'checks' => $checks,
+            'healthy' => $healthy,
+            'envSummary' => [
+                'APP_NAME' => config('app.name'),
+                'APP_ENV' => app()->environment(),
+                'APP_DEBUG' => config('app.debug') ? 'true' : 'false',
+                'APP_URL' => config('app.url'),
+                'APP_TIMEZONE' => config('app.timezone'),
+                'DB_CONNECTION' => config('database.default'),
+                'CACHE_STORE' => config('cache.default'),
+                'QUEUE_CONNECTION' => config('queue.default'),
+                'SESSION_DRIVER' => config('session.driver'),
+                'FILESYSTEM_DISK' => config('filesystems.default'),
+            ],
+        ]);
+    }
+
+    /**
+     * Cek 1 — Database: jalankan query paling ringan, lalu laporkan
+     * nama driver dan nama database yang terhubung.
+     */
+    protected function checkDatabase(): array
+    {
+        try {
+            $connection = DB::connection();
+            $driver = $connection->getDriverName();
+            $database = $connection->getDatabaseName();
+
+            $connection->select('select 1');
+
+            return [
+                'ok' => true,
+                'detail' => [
+                    'driver' => $driver,
+                    'database' => $database,
+                ],
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'ok' => false,
+                'detail' => ['error' => $e->getMessage()],
+            ];
+        }
+    }
+
+    /**
+     * Cek 2 — Cache: pastikan store cache benar-benar bisa menulis & membaca.
+     */
+    protected function checkCache(): array
+    {
+        try {
+            $store = config('cache.default');
+            $value = 'pong-'.now()->getTimestampMs();
+
+            Cache::store($store)->put($this->cacheKey, $value, 10);
+            $read = Cache::store($store)->pull($this->cacheKey);
+
+            return [
+                'ok' => $read === $value,
+                'detail' => [
+                    'store' => $store,
+                    'written' => $value,
+                    'read' => $read === $value ? 'cocok' : (string) $read,
+                ],
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'ok' => false,
+                'detail' => ['store' => config('cache.default'), 'error' => $e->getMessage()],
+            ];
+        }
+    }
+
+    /**
+     * Cek 3 — Storage: tulis, baca, lalu hapus berkas probe pada disk lokal.
+     */
+    protected function checkStorage(): array
+    {
+        try {
+            $disk = \Illuminate\Support\Facades\Storage::disk('local');
+            $content = 'probe-'.now()->getTimestampMs();
+
+            $disk->put($this->probeFile, $content);
+            $read = $disk->get($this->probeFile);
+            $disk->delete($this->probeFile);
+
+            return [
+                'ok' => $read === $content,
+                'detail' => [
+                    'disk' => 'local',
+                    'path' => storage_path('app'),
+                    'written' => $content,
+                    'read' => $read === $content ? 'cocok' : (string) $read,
+                ],
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'ok' => false,
+                'detail' => ['error' => $e->getMessage()],
+            ];
+        }
+    }
+
+    /**
+     * Validasi token proteksi dari .env (HEALTHCHECK_TOKEN).
+     * Bernilai null/kosong/"null" -> proteksi dinonaktifkan (mode lokal).
+     */
+    protected function tokenValid(Request $request): bool
+    {
+        $expected = env('HEALTHCHECK_TOKEN');
+
+        if ($expected === null || $expected === '' || strtolower((string) $expected) === 'null') {
+            return true;
+        }
+
+        return hash_equals((string) $expected, (string) $request->header('X-Health-Token'));
+    }
+}
+
+C. Master Layout Blade Antarmuka (resources/views/layouts/app.blade.php)
+------------------------------------------------------------------------------
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    <title>@yield('title', config('app.name')) — {{ config('app.name') }}</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS via CDN: cukup untuk pengembangan; gunakan build Vite untuk produksi -->
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-slate-100 font-sans text-slate-800 antialiased">
+    <!-- ===== Navbar ===== -->
+    <header class="border-b border-slate-200 bg-white/90 shadow-sm backdrop-blur">
+        <nav class="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
+            <a href="{{ url('/') }}" class="flex items-center gap-2 font-semibold text-slate-900">
+                <span class="grid h-8 w-8 place-items-center rounded-lg bg-indigo-600 text-sm font-bold text-white">LD</span>
+                <span>{{ config('app.name') }}</span>
+            </a>
+
+            <div class="flex items-center gap-1 text-sm">
+                <a href="{{ route('home') }}"
+                   class="rounded-lg px-3 py-2 font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900">
+                    Beranda
+                </a>
+                <a href="{{ route('uji-koneksi') }}"
+                   class="rounded-lg px-3 py-2 font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900">
+                    Uji Koneksi
+                </a>
+                <a href="{{ route('dokumentasi-env') }}"
+                   class="rounded-lg px-3 py-2 font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900">
+                    Dokumentasi .env
+                </a>
+                <a href="{{ route('health') }}"
+                   class="ml-2 rounded-lg bg-indigo-600 px-3 py-2 font-semibold text-white shadow-sm transition hover:bg-indigo-700">
+                    /health
+                </a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- ===== Banner status aplikasi ===== -->
+    <div class="border-b border-emerald-100 bg-emerald-50">
+        <div class="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2 text-xs text-emerald-800">
+            <span class="font-semibold">{{ config('app.name') }}</span>
+            <span class="rounded-full bg-white px-2 py-0.5 font-medium ring-1 ring-emerald-200">env: {{ app()->environment() }}</span>
+            <span class="rounded-full bg-white px-2 py-0.5 font-medium ring-1 ring-emerald-200">Laravel {{ app()->version() }}</span>
+            <span class="rounded-full bg-white px-2 py-0.5 font-medium ring-1 ring-emerald-200">PHP {{ PHP_VERSION }}</span>
+            <span class="rounded-full bg-white px-2 py-0.5 font-medium ring-1 ring-emerald-200">DB: {{ config('database.default') }}</span>
+            <span class="ml-auto">{{ now()->translatedFormat('d F Y, H:i') }}</span>
+        </div>
+    </div>
+
+    <!-- ===== Konten utama ===== -->
+    <main class="mx-auto max-w-6xl px-4 py-8">
+        @yield('content')
+    </main>
+
+    <!-- ===== Footer ===== -->
+    <footer class="border-t border-slate-200 bg-white">
+        <div class="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+            <span>&copy; {{ date('Y') }} {{ config('app.name') }} — Contoh dokumentasi konfigurasi lingkungan &amp; healthcheck.</span>
+            <span>APP_URL: {{ config('app.url') }}</span>
+        </div>
+    </footer>
+</body>
+</html>
