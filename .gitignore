@@ -1,5 +1,4 @@
 *.log
-*.jar
 .DS_Store
 .env
 .env.backup
@@ -7,6 +6,7 @@
 .phpactor.json
 .phpunit.result.cache
 /.fleet
+/.freebuff
 /.idea
 /.nova
 /.phpunit.cache
@@ -20,9 +20,6 @@
 /storage/*.key
 /storage/pail
 /vendor
-/build
-/nbproject/private/
-nbproject/private/
 Homestead.json
 Homestead.yaml
 Thumbs.db

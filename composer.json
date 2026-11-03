@@ -1,14 +1,16 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "coffee-shop-order",
+    "name": "laravel/laravel",
     "type": "project",
-    "description": "Aplikasi pemesanan coffee shop dengan dokumentasi konfigurasi lingkungan, healthcheck, dan master layout Blade.",
-    "keywords": ["laravel", "coffee-shop", "order"],
+    "description": "The skeleton application for the Laravel framework.",
+    "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "bacon/bacon-qr-code": "^3.0",
         "laravel/framework": "^12.0",
-        "laravel/tinker": "^2.10.1"
+        "laravel/tinker": "^2.10.1",
+        "midtrans/midtrans-php": "^2.6"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
