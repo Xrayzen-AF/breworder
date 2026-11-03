@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './admin.css';
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -6,6 +7,141 @@
 @source '../**/*.js';
 
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    /* ——— Artisan Craft palette ——— */
+    /* Canvas & surfaces (warm neutral dark) */
+    --color-canvas: #1E1511;
+    --color-surface: #221A15;
+    --color-card: #271D19;
+    --color-elevated: #2F231D;
+    --color-inset: #2A1F19;
+
+    /* Ink */
+    --color-ink: #F1DFD8;
+    --color-ink-muted: #B8A8A1;
+    --color-ink-dim: #9D8E87;
+    --color-ink-faint: #82746E;
+
+    /* Hairlines */
+    --color-line: #3D322E;
+    --color-line-strong: #554336;
+
+    /* Accents */
+    --color-primary: #d97706;
+    --color-primary-hover: #B56100;
+    --color-primary-ink: #241708;
+    --color-secondary: #E0A96D;
+    --color-tertiary: #F59E0B;
+    --color-neutral: #221A15;
+
+    /* Status */
+    --color-success: #4ade80;
+    --color-warning: #fbbf24;
+    --color-danger: #f87171;
+
+    /* Legacy aliases — keep older class names working */
+    --color-on-surface: #F1DFD8;
+    --color-on-variant: #B8A8A1;
+    --color-inverse-surface: #F1DFD8;
+    --color-inverse-on: #241708;
+    --color-meta: #9D8E87;
+    --color-limestone: #3D322E;
+    --color-hairline: #554336;
+    --color-outline: #9D8E87;
+    --color-outline-variant: #3D322E;
+    --color-surface-dim: #2A1F19;
+    --color-surface-bright: #2F231D;
+    --color-surface-container-lowest: #1E1511;
+    --color-surface-container-low: #221A15;
+    --color-surface-container: #271D19;
+    --color-surface-container-high: #2F231D;
+    --color-surface-container-highest: #3D322E;
+    --color-linen: #221A15;
+    --color-espresso: #F1DFD8;
+    --color-roast: #d97706;
+    --color-roast-deep: #B56100;
+    --color-ember: #F59E0B;
+    --color-ember-ink: #241708;
+    --color-terracotta: #E0A96D;
+    --color-terracotta-deep: #d97706;
+    --color-terracotta-soft: #E0A96D;
+    --color-brand: #d97706;
+    --color-brand-light: #2F231D;
+    --color-brand-border: #3D322E;
+    --color-dark: #1E1511;
+
+    /* Typography — satu sistem untuk seluruh aplikasi:
+       Inter untuk teks UI/tombol/label/angka (punya weight 400–700),
+       Lora untuk heading/judul serif. */
+    --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    --font-display: 'Lora', ui-serif, Georgia, serif;
+    --font-serif: 'Lora', ui-serif, Georgia, serif;
+    --font-grotesk: 'Inter', ui-sans-serif, system-ui, sans-serif;
+
+    --tracking-widest: 0.25em;
+}
+
+@layer base {
+    html {
+        color-scheme: dark;
+    }
+    body {
+        background-color: var(--color-canvas);
+        color: var(--color-ink);
+        font-family: var(--font-sans);
+        /* Sengaja tanpa properti smoothing paksa.
+           Di Windows properti itu mematikan subpixel rendering sehingga
+           teks kecil tampak tipis, pecah, dan buram. Biarkan browser memakai
+           rendering defaultnya (subpixel) agar tajam di semua platform. */
+    }
+    h1, h2, h3, .font-display {
+        font-family: var(--font-display);
+        color: var(--color-ink);
+    }
+    /* Angka pada tabel/data transaksi disejajarkan agar mudah dibandingkan. */
+    table {
+        font-variant-numeric: tabular-nums;
+    }
+    ::selection {
+        background: rgba(217, 119, 6, 0.32);
+        color: #fff3e2;
+    }
+    ::-webkit-scrollbar { width: 10px; height: 10px; }
+    ::-webkit-scrollbar-track { background: var(--color-canvas); }
+    ::-webkit-scrollbar-thumb {
+        background: #3D322E;
+        border-radius: 999px;
+        border: 2px solid var(--color-canvas);
+    }
+    ::-webkit-scrollbar-thumb:hover { background: #554336; }
+}
+
+/* ==========================================================================
+   Konsistensi visual lintas peran (pelanggan, kasir, barista, admin)
+   ========================================================================== */
+
+/* Skala radius tunggal:
+   control (tombol/input) < surface (kartu, panel, alert) < overlay (modal/sheet). */
+:root {
+    --radius-control: 6px;
+    --radius-surface: 8px;
+    --radius-overlay: 12px;
+}
+
+/* Ikon Lucide: satu ketebalan garis (1.5) untuk semua ikon.
+   Lucide menulis stroke-width="2" sebagai atribut presentasi pada <svg>,
+   sehingga aturan CSS ini (bukan utilitas Tailwind) yang menimpanya. */
+svg.lucide {
+    stroke-width: 1.5;
+}
+
+/* Tombol: sudut tipis 6px (boxy/klasik) & tanpa gradasi.
+   Berlaku untuk seluruh <button>, termasuk yang memakai utilitas
+   rounded-lg/rounded-xl/rounded-full. Aturan kelas khusus (mis. .step,
+   .btn-primary) tetap menang dan sudah disamakan satu per satu. */
+button,
+input[type="submit"],
+input[type="button"],
+input[type="reset"] {
+    border-radius: var(--radius-control);
+    background-image: none;
 }
