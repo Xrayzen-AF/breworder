@@ -1,14 +1,39 @@
 <?php
 
-use App\Http\Controllers\HealthController;
+use App\Http\Controllers\Api\MidtransNotificationController;
+use App\Http\Controllers\Api\OpsAgentController;
+use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\OrderController;
+use App\Http\Controllers\ProductController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/ping', fn () => response()->json([
-    'message' => 'pong',
-    'app' => config('app.name'),
-    'time' => now()->toIso8601String(),
-]))->name('api.ping');
+// Webhook Midtrans (Aman dari proteksi CSRF)
+Route::post('midtrans/callback', [MidtransNotificationController::class, 'handle']);
 
-Route::get('/health', [HealthController::class, 'apiIndex'])->name('api.health');
+// Menu (publik)
+Route::get('categories', [CategoryController::class, 'index']);
+Route::get('products', [ProductController::class, 'index']);
+Route::get('products/{produk:kode_produk}', [ProductController::class, 'show']);
 
-Route::get('/uji-koneksi', [HealthController::class, 'apiUjiKoneksi'])->name('api.uji-koneksi');
+// Pesanan pelanggan (wajib login — mencegah order anonim & harga palsu)
+Route::middleware('auth')->group(function () {
+    Route::post('orders', [OrderController::class, 'store']);
+    Route::get('orders/{nomorPesanan}', [OrderController::class, 'showByNumber']);
+});
+
+// Kasir / barista (wajib login + peran sesuai)
+Route::middleware(['auth', 'role:kasir,barista'])->group(function () {
+    Route::get('orders', [OrderController::class, 'index']);
+    Route::patch('orders/{pesanan}/status', [OrderController::class, 'updateStatus']);
+    Route::patch('orders/{pesanan}/cancel', [OrderController::class, 'cancel']);
+});
+
+// ============================================================
+// Multi-agent AI orchestration (Ops Console) — lihat spec §3
+// ============================================================
+Route::prefix('v1')->group(function () {
+    Route::get('ops/financial-summary', [OpsAgentController::class, 'financialSummary']);
+    Route::get('ops/traffic-telemetry', [OpsAgentController::class, 'trafficTelemetry']);
+    Route::get('inventory/alerts', [OpsAgentController::class, 'inventoryAlerts']);
+    Route::post('inventory/reorder', [OpsAgentController::class, 'reorder']);
+});
